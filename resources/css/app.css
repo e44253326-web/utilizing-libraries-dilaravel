@@ -1,0 +1,98 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+.pink-app .bg-gray-100 {
+    background-color: #fce7f3;
+}
+
+.pink-app [class~="dark:bg-gray-900"] {
+    background-color: #fce7f3;
+}
+
+.pink-app .bg-white {
+    background-color: #fff0f7;
+}
+
+.pink-app .border-gray-100,
+.pink-app .border-gray-200 {
+    border-color: #f6d5e5;
+}
+
+.pink-app .bg-gray-800 {
+    background-color: #fff0f7;
+}
+
+.pink-app .bg-indigo-50 {
+    background-color: #fbcfe8;
+}
+
+.pink-app .bg-indigo-100 {
+    background-color: #f9a8d4;
+}
+
+.pink-app .text-indigo-600,
+.pink-app .text-indigo-700 {
+    color: #9d174d;
+}
+
+.pink-app [class~="dark:text-indigo-400"],
+.pink-app [class~="dark:text-indigo-300"] {
+    color: #f9a8d4;
+}
+
+.pink-app .border-indigo-400,
+.pink-app .border-indigo-600,
+.pink-app .border-indigo-700 {
+    border-color: #ec4899;
+}
+
+.pink-app button.bg-gray-800,
+.pink-app button[class~="dark:bg-gray-200"] {
+    background-image: linear-gradient(110deg, #ec4899, #db2777 54%, #be185d);
+    color: #fff;
+    box-shadow: 0 8px 18px rgb(190 24 93 / 20%);
+}
+
+.pink-app button.bg-gray-800:hover,
+.pink-app button[class~="dark:bg-gray-200"]:hover {
+    background-image: linear-gradient(110deg, #db2777, #be185d 54%, #9d174d);
+}
+
+.pink-app nav {
+    border-color: #f3bfd8;
+    background-image: linear-gradient(100deg, #fff0f7, #fce7f3);
+}
+
+.pink-app header {
+    background-image: linear-gradient(100deg, #fff5fa, #fce7f3);
+}
+
+.pink-app .rounded-lg,
+.pink-app .rounded-2xl {
+    border-color: #f3bfd8;
+    background-color: #fffafd;
+    box-shadow: 0 12px 32px rgb(190 24 93 / 8%);
+}
+
+.pink-app .text-gray-900,
+.pink-app .text-gray-800 {
+    color: #4a1234;
+}
+
+.pink-app .text-gray-600,
+.pink-app .text-gray-500 {
+    color: #84385e;
+}
+
+.pink-app [class~="dark:text-gray-100"],
+.pink-app [class~="dark:text-gray-200"],
+.pink-app [class~="dark:text-gray-300"],
+.pink-app [class~="dark:text-gray-400"] {
+    color: #70234a;
+}
+
+.pink-app button:focus-visible {
+    outline: 3px solid rgb(236 72 153 / 45%);
+    outline-offset: 2px;
+}
