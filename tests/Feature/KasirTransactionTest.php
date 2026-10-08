@@ -5,7 +5,9 @@ namespace Tests\Feature;
 use App\Models\Product;
 use App\Models\Transaction;
 use App\Models\User;
+use App\Services\EscPosReceiptPrinter;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Mockery\MockInterface;
 use Tests\TestCase;
 
 class KasirTransactionTest extends TestCase
@@ -101,6 +103,7 @@ class KasirTransactionTest extends TestCase
             ->assertJsonPath('message', 'Transaksi berhasil disimpan.');
 
         $transaction = Transaction::query()->with('details')->firstOrFail();
+        $response->assertJsonPath('thermal_print_url', route('kasir.receipt.print', $transaction));
         $this->assertSame('paid', $transaction->status);
         $this->assertSame('QRIS', $transaction->payment_method);
         $this->assertSame(20000.0, (float) $transaction->subtotal);
@@ -118,7 +121,9 @@ class KasirTransactionTest extends TestCase
             ->assertOk()
             ->assertSee($transaction->transaction_number)
             ->assertSee('Pelanggan Uji')
-            ->assertSee('QRIS');
+            ->assertSee('QRIS')
+            ->assertSee('Cetak ulang via thermal')
+            ->assertSee('Cetak via browser');
     }
 
     public function test_insufficient_payment_does_not_save_transaction_or_decrement_stock(): void
@@ -145,6 +150,52 @@ class KasirTransactionTest extends TestCase
             'id' => $product->id,
             'stock' => 4,
         ]);
+    }
+
+    public function test_cashier_can_print_their_paid_receipt(): void
+    {
+        $cashier = $this->login();
+        $transaction = $this->createPaidTransaction($cashier);
+
+        $this->mock(EscPosReceiptPrinter::class, function (MockInterface $mock): void {
+            $mock->shouldReceive('print')
+                ->once()
+                ->with(\Mockery::type(Transaction::class));
+        });
+
+        $this->postJson(route('kasir.receipt.print', $transaction))
+            ->assertOk()
+            ->assertJsonPath('message', 'Struk berhasil dikirim ke printer thermal.');
+    }
+
+    public function test_failed_thermal_print_keeps_the_paid_transaction_saved(): void
+    {
+        $cashier = $this->login();
+        $transaction = $this->createPaidTransaction($cashier);
+
+        $this->mock(EscPosReceiptPrinter::class, function (MockInterface $mock): void {
+            $mock->shouldReceive('print')
+                ->once()
+                ->andThrow(new \RuntimeException('Printer is offline.'));
+        });
+
+        $this->postJson(route('kasir.receipt.print', $transaction))
+            ->assertServiceUnavailable()
+            ->assertJsonPath('message', 'Struk tidak dapat dicetak. Periksa printer dan nama printer di konfigurasi.');
+
+        $this->assertModelExists($transaction);
+        $this->assertSame('paid', $transaction->fresh()->status);
+    }
+
+    public function test_cashier_cannot_print_another_users_receipt(): void
+    {
+        $owner = User::factory()->create(['role' => 'cashier']);
+        $transaction = $this->createPaidTransaction($owner);
+
+        $this->login();
+
+        $this->postJson(route('kasir.receipt.print', $transaction))
+            ->assertNotFound();
     }
 
     public function test_held_transaction_is_saved_and_does_not_reserve_stock(): void
@@ -392,5 +443,25 @@ class KasirTransactionTest extends TestCase
         $this->actingAs($user);
 
         return $user;
+    }
+
+    private function createPaidTransaction(User $cashier): Transaction
+    {
+        return Transaction::create([
+            'transaction_number' => 'TRX-20261008-001',
+            'user_id' => $cashier->id,
+            'customer_name' => 'Umum',
+            'subtotal' => 1000,
+            'discount_percent' => 0,
+            'discount_amount' => 0,
+            'discount' => 0,
+            'tax' => 0,
+            'other_fee' => 0,
+            'grand_total' => 1000,
+            'paid_amount' => 1000,
+            'change_amount' => 0,
+            'payment_method' => 'Tunai',
+            'status' => 'paid',
+        ]);
     }
 }

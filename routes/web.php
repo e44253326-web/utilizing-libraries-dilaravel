@@ -6,6 +6,7 @@ use App\Http\Controllers\KasirController;
 use App\Http\Controllers\ProductController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\SettingsController;
+use App\Http\Controllers\StrukController;
 use App\Models\Product;
 use Illuminate\Support\Facades\Route;
 
@@ -40,6 +41,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('/kasir/transaksi/{transaction}/struk', [KasirController::class, 'receipt'])
             ->middleware('can:viewReceipt,transaction')
             ->name('kasir.receipt');
+        Route::post('/kasir/transaksi/{transaction}/struk/cetak', [StrukController::class, 'struk'])
+            ->middleware('can:viewReceipt,transaction')
+            ->name('kasir.receipt.print');
     });
 });
 

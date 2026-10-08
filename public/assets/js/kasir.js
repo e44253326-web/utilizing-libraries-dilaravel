@@ -521,7 +521,14 @@
         elements.payButton.disabled = true;
         try {
             const result = await sendRequest(config.storeUrl, 'POST', requestPayload());
-            window.location.assign(result.receipt_url);
+            const receiptUrl = new URL(result.receipt_url, window.location.origin);
+            try {
+                await sendRequest(result.thermal_print_url, 'POST', {});
+                receiptUrl.searchParams.set('thermal_print', 'success');
+            } catch (error) {
+                receiptUrl.searchParams.set('thermal_print', 'failed');
+            }
+            window.location.assign(receiptUrl.toString());
         } catch (error) {
             notify(error.message);
             elements.payButton.disabled = false;

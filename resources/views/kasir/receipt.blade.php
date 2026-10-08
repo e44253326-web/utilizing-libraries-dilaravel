@@ -25,6 +25,15 @@
 </head>
 <body>
     <main class="receipt">
+        @if (request()->query('thermal_print') === 'success' || session('success'))
+            <div class="alert alert-success print-actions" role="status">
+                {{ session('success', 'Struk berhasil dikirim ke printer thermal.') }}
+            </div>
+        @elseif (request()->query('thermal_print') === 'failed' || session('error'))
+            <div class="alert alert-warning print-actions" role="alert">
+                {{ session('error', 'Transaksi tersimpan, tetapi struk thermal tidak tercetak. Periksa printer lalu coba lagi.') }}
+            </div>
+        @endif
         <div class="text-center mb-3">
             <div class="receipt-brand">TOKO DIAN NAME</div>
             <div class="receipt-meta">Alamat toko belum dikonfigurasi</div>
@@ -72,12 +81,13 @@
         <hr class="receipt-rule">
         <p class="receipt-footnote text-center mb-3">Barang yang sudah dibeli tidak dapat ditukar atau dikembalikan.</p>
         <div class="print-actions d-flex justify-content-center gap-2">
-            <button type="button" class="btn btn-primary" onclick="window.print()">Cetak struk</button>
+            <form method="POST" action="{{ route('kasir.receipt.print', $transaction) }}">
+                @csrf
+                <button type="submit" class="btn btn-primary">Cetak ulang via thermal</button>
+            </form>
+            <button type="button" class="btn btn-outline-primary" onclick="window.print()">Cetak via browser</button>
             <a href="{{ route('kasir.index') }}" class="btn btn-outline-secondary">Transaksi baru</a>
         </div>
     </main>
-    <script>
-        window.addEventListener('load', () => window.print());
-    </script>
 </body>
 </html>

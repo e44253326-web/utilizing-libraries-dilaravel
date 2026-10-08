@@ -46,15 +46,51 @@ class RoleAccessTest extends TestCase
             ->assertRedirect(route('admin.index'));
     }
 
-    public function test_demo_admin_seeder_creates_a_separate_admin_account(): void
+    public function test_demo_admin_seeder_replaces_the_old_account_with_configured_admin_account(): void
     {
+        config([
+            'demo_accounts.admin.name' => 'Dian',
+            'demo_accounts.admin.email' => 'dianname@gmail.com',
+            'demo_accounts.admin.password' => 'admin-test-password',
+        ]);
+
+        User::factory()->create([
+            'email' => 'admin.demo@tokodianname.test',
+            'role' => 'admin',
+        ]);
+
         $this->seed('Database\\Seeders\\DemoAdminSeeder');
 
-        $admin = User::query()->where('email', 'admin.demo@tokodianname.test')->firstOrFail();
+        $admin = User::query()->where('email', 'dianname@gmail.com')->firstOrFail();
 
+        $this->assertDatabaseCount('users', 1);
+        $this->assertDatabaseMissing('users', ['email' => 'admin.demo@tokodianname.test']);
+        $this->assertSame('Dian', $admin->name);
         $this->assertSame('admin', $admin->role);
-        $this->assertTrue(Hash::check('AdminDian#2026!', $admin->password));
+        $this->assertTrue(Hash::check('admin-test-password', $admin->password));
         $this->actingAs($admin)->get(route('admin.index'))->assertOk();
         $this->get(route('kasir.index'))->assertForbidden();
+    }
+
+    public function test_database_seeder_creates_both_staff_accounts(): void
+    {
+        config([
+            'demo_accounts.admin.email' => 'admin@example.test',
+            'demo_accounts.admin.password' => 'admin-test-password',
+            'demo_accounts.cashier.email' => 'cashier@example.test',
+            'demo_accounts.cashier.password' => 'cashier-test-password',
+        ]);
+
+        $this->seed();
+
+        $this->assertDatabaseHas('users', [
+            'email' => 'admin@example.test',
+            'role' => 'admin',
+        ]);
+        $this->assertDatabaseHas('users', [
+            'email' => 'cashier@example.test',
+            'role' => 'cashier',
+        ]);
+        $this->assertDatabaseCount('users', 2);
     }
 }

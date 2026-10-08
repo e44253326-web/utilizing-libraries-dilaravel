@@ -4,7 +4,6 @@ namespace Database\Seeders;
 
 use App\Models\User;
 use Illuminate\Database\Seeder;
-use Illuminate\Support\Facades\Hash;
 use RuntimeException;
 
 class DemoAdminSeeder extends Seeder
@@ -18,30 +17,28 @@ class DemoAdminSeeder extends Seeder
             throw new RuntimeException('Akun demo admin hanya boleh dibuat di lingkungan lokal atau testing.');
         }
 
-        $email = 'admin.demo@tokodianname.test';
-        $password = 'AdminDian#2026!';
+        $account = config('demo_accounts.admin');
+        $email = $account['email'] ?? null;
+        $password = $account['password'] ?? null;
 
-        $user = User::query()->firstOrCreate(
+        if (! is_string($email) || trim($email) === '' || ! is_string($password) || $password === '') {
+            throw new RuntimeException('Email dan kata sandi demo admin harus diatur di file .env.');
+        }
+
+        User::query()->where('email', 'admin.demo@tokodianname.test')->delete();
+
+        User::query()->updateOrCreate(
             ['email' => $email],
             [
-                'name' => 'Admin Demo',
+                'name' => $account['name'],
                 'email_verified_at' => now(),
-                'password' => Hash::make($password),
+                'password' => $password,
                 'role' => 'admin',
             ],
         );
-        $user->forceFill([
-            'role' => 'admin',
-            'email_verified_at' => $user->email_verified_at ?? now(),
-        ])->save();
 
         if ($this->command !== null) {
             $this->command->info('Email demo: '.$email);
-            if (Hash::check($password, $user->password)) {
-                $this->command->info('Kata sandi demo: '.$password);
-            } else {
-                $this->command->warn('Akun email tersebut sudah ada dan kata sandinya tidak diubah.');
-            }
         }
     }
 }

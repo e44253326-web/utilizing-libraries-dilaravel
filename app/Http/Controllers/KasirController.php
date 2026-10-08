@@ -115,6 +115,7 @@ class KasirController extends Controller
             'transaction_id' => $transaction->id,
             'transaction_number' => $transaction->transaction_number,
             'receipt_url' => route('kasir.receipt', $transaction),
+            'thermal_print_url' => route('kasir.receipt.print', $transaction),
         ]);
     }
 

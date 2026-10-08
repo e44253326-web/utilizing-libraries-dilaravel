@@ -13,19 +13,31 @@ class DemoCashierSeederTest extends TestCase
 
     public function test_demo_cashier_can_log_in_and_access_the_cashier_page_after_seeding(): void
     {
+        config([
+            'demo_accounts.cashier.name' => 'Kasir Dian',
+            'demo_accounts.cashier.email' => 'dian@toko.test',
+            'demo_accounts.cashier.password' => 'cashier-test-password',
+        ]);
+
+        User::factory()->create([
+            'email' => 'kasir.demo@tokodianname.test',
+            'role' => 'cashier',
+        ]);
+
         $this->seed('Database\\Seeders\\DemoCashierSeeder');
         $this->seed('Database\\Seeders\\DemoCashierSeeder');
 
-        $user = User::query()->where('email', 'kasir.demo@tokodianname.test')->firstOrFail();
+        $user = User::query()->where('email', 'dian@toko.test')->firstOrFail();
 
         $this->assertDatabaseCount('users', 1);
-        $this->assertSame('Kasir Demo', $user->name);
+        $this->assertDatabaseMissing('users', ['email' => 'kasir.demo@tokodianname.test']);
+        $this->assertSame('Kasir Dian', $user->name);
         $this->assertSame('cashier', $user->role);
-        $this->assertTrue(Hash::check('KasirDian#2026!', $user->password));
+        $this->assertTrue(Hash::check('cashier-test-password', $user->password));
 
         $this->post('/login', [
-            'email' => 'kasir.demo@tokodianname.test',
-            'password' => 'KasirDian#2026!',
+            'email' => 'dian@toko.test',
+            'password' => 'cashier-test-password',
         ])->assertRedirect(route('kasir.index', absolute: false));
 
         $this->assertAuthenticatedAs($user);
