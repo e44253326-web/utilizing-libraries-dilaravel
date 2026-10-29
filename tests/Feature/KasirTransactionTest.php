@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Models\Product;
 use App\Models\Transaction;
+use App\Models\TransactionDetail;
 use App\Models\User;
 use App\Services\EscPosReceiptPrinter;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -123,7 +124,37 @@ class KasirTransactionTest extends TestCase
             ->assertSee('Pelanggan Uji')
             ->assertSee('QRIS')
             ->assertSee('Cetak ulang via thermal')
-            ->assertSee('Cetak via browser');
+            ->assertSee('Cetak via browser')
+            ->assertSee(route('transactions.invoice', $transaction));
+    }
+
+    public function test_cashier_can_download_a_pdf_invoice_for_their_paid_transaction(): void
+    {
+        $cashier = $this->login();
+        $transaction = $this->createPaidTransaction($cashier);
+        TransactionDetail::factory()->create([
+            'transaction_id' => $transaction->id,
+            'product_name' => 'Beras 5kg',
+            'price' => 1000,
+            'qty' => 1,
+            'subtotal' => 1000,
+        ]);
+
+        $this->get(route('transactions.invoice', $transaction))
+            ->assertDownload('invoice_'.$transaction->id.'.pdf');
+
+        $this->get(route('pdf.cetak'))
+            ->assertDownload('invoice_'.$transaction->id.'.pdf');
+    }
+
+    public function test_non_cashier_cannot_download_a_pdf_from_the_pdf_cetak_route(): void
+    {
+        $customer = User::factory()->create(['role' => 'customer']);
+        $transaction = $this->createPaidTransaction($customer);
+
+        $this->actingAs($customer)
+            ->get(route('pdf.cetak', $transaction))
+            ->assertNotFound();
     }
 
     public function test_insufficient_payment_does_not_save_transaction_or_decrement_stock(): void
@@ -408,6 +439,21 @@ class KasirTransactionTest extends TestCase
 
         $this->actingAs(User::factory()->create(['role' => 'cashier']))
             ->get(route('kasir.receipt', $transaction))
+            ->assertNotFound();
+
+        $this->get(route('transactions.invoice', $transaction))
+            ->assertNotFound();
+    }
+
+    public function test_cashier_cannot_download_an_invoice_for_a_held_transaction(): void
+    {
+        $cashier = $this->login();
+        $transaction = Transaction::factory()->create([
+            'user_id' => $cashier->id,
+            'status' => 'held',
+        ]);
+
+        $this->get(route('transactions.invoice', $transaction))
             ->assertNotFound();
     }
 

@@ -85,6 +85,7 @@
                 @csrf
                 <button type="submit" class="btn btn-primary">Cetak ulang via thermal</button>
             </form>
+            <a href="{{ route('transactions.invoice', $transaction) }}" class="btn btn-outline-primary">Unduh invoice PDF</a>
             <button type="button" class="btn btn-outline-primary" onclick="window.print()">Cetak via browser</button>
             <a href="{{ route('kasir.index') }}" class="btn btn-outline-secondary">Transaksi baru</a>
         </div>
