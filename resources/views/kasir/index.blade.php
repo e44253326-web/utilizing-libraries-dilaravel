@@ -7,8 +7,9 @@
     <title>Kasir | TOKO DIAN NAME</title>
     <link href="{{ asset('assets/vendor/bootstrap/css/bootstrap.min.css') }}" rel="stylesheet">
     <link href="{{ asset('assets/vendor/bootstrap-icons/bootstrap-icons.min.css') }}" rel="stylesheet">
-    <link href="{{ asset('assets/css/kasir.css') }}" rel="stylesheet">
+    <link href="{{ asset('assets/css/kasir.css') }}?v={{ filemtime(public_path('assets/css/kasir.css')) }}" rel="stylesheet">
     <link href="{{ asset('assets/css/pink-theme.css') }}" rel="stylesheet">
+    @vite('resources/js/echo.js')
 </head>
 <body>
     <header class="store-header">
@@ -219,16 +220,49 @@
         <footer class="pos-footer text-center mt-4">F2 cari barang <span>·</span> F4 uang dibayar <span>·</span> ESC batal transaksi</footer>
     </main>
 
+    <div id="paymentSuccessModal" class="payment-success-overlay" hidden>
+        <section class="payment-success-dialog" role="dialog" aria-modal="true" aria-labelledby="paymentSuccessTitle">
+            <button type="button" id="closePaymentSuccess" class="payment-success-close" aria-label="Tutup">
+                <i class="bi bi-x-lg"></i>
+            </button>
+            <div class="payment-success-icon"><i class="bi bi-receipt"></i></div>
+            <h2 id="paymentSuccessTitle">Pembayaran Berhasil</h2>
+            <p class="payment-success-message">Transaksi telah tersimpan. Terima kasih sudah berbelanja.</p>
+            <dl class="payment-success-details">
+                <div>
+                    <dt>No. transaksi</dt>
+                    <dd id="successTransactionNumber">-</dd>
+                </div>
+                <div>
+                    <dt>Total belanja</dt>
+                    <dd id="successGrandTotal">Rp0</dd>
+                </div>
+                <div>
+                    <dt>Kembalian</dt>
+                    <dd id="successChangeAmount">Rp0</dd>
+                </div>
+            </dl>
+            <div id="paymentSuccessError" class="payment-success-error" role="alert" hidden></div>
+            <div class="payment-success-actions">
+                <button type="button" id="finishWithoutPrint" class="btn btn-outline-secondary">Selesai Tanpa Cetak</button>
+                <button type="button" id="printSuccessReceipt" class="btn btn-primary">
+                    <i class="bi bi-printer me-1"></i> Cetak Struk
+                </button>
+            </div>
+        </section>
+    </div>
+
     <script>
         window.kasirConfig = {{ \Illuminate\Support\Js::from([
             'searchUrl' => route('kasir.search'),
             'storeUrl' => route('kasir.store'),
             'holdUrl' => route('kasir.hold'),
             'heldDeleteBaseUrl' => url('/kasir/ditahan'),
+            'userId' => auth()->id(),
             'csrfToken' => csrf_token(),
             'heldTransaction' => $heldTransaction,
         ]) }};
     </script>
-    <script src="{{ asset('assets/js/kasir.js') }}" defer></script>
+    <script src="{{ asset('assets/js/kasir.js') }}?v={{ filemtime(public_path('assets/js/kasir.js')) }}" defer></script>
 </body>
 </html>

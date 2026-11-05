@@ -4,7 +4,7 @@
 @section('page-title', 'Ringkasan Dashboard')
 
 @section('content')
-    <div class="admin-welcome mb-4">
+    <div class="admin-welcome mb-3">
         <div>
             <div class="admin-eyebrow">DASHBOARD ADMIN</div>
             <h2 class="h4 mb-1">Selamat datang, {{ $adminName }}</h2>
@@ -12,6 +12,8 @@
         </div>
         <div class="admin-date"><i class="bi bi-calendar3 me-2"></i>{{ now('Asia/Jakarta')->translatedFormat('l, d F Y') }}</div>
     </div>
+
+    <div class="alert alert-info d-none mb-4" data-transaction-live-notice role="status" aria-live="polite"></div>
 
     <div class="row g-3 mb-4">
         <div class="col-12 col-sm-6 col-xl-3">
@@ -26,7 +28,7 @@
             <article class="admin-stat-card">
                 <div class="admin-stat-icon green"><i class="bi bi-receipt"></i></div>
                 <div class="admin-stat-label">Transaksi Hari Ini</div>
-                <div class="admin-stat-value">{{ number_format($todayTransactions, 0, ',', '.') }}</div>
+                <div class="admin-stat-value" data-today-transactions data-value="{{ $todayTransactions }}">{{ number_format($todayTransactions, 0, ',', '.') }}</div>
                 <div class="admin-stat-note">transaksi berhasil dibayar</div>
             </article>
         </div>
@@ -34,7 +36,7 @@
             <article class="admin-stat-card">
                 <div class="admin-stat-icon purple"><i class="bi bi-cash-stack"></i></div>
                 <div class="admin-stat-label">Penjualan Hari Ini</div>
-                <div class="admin-stat-value admin-currency">Rp{{ number_format((float) $todayRevenue, 0, ',', '.') }}</div>
+                <div class="admin-stat-value admin-currency" data-today-revenue data-value="{{ (float) $todayRevenue }}">Rp{{ number_format((float) $todayRevenue, 0, ',', '.') }}</div>
                 <div class="admin-stat-note">total transaksi lunas</div>
             </article>
         </div>
@@ -69,9 +71,9 @@
                                 <th class="text-end">Total</th>
                             </tr>
                         </thead>
-                        <tbody>
+                        <tbody data-recent-transactions>
                             @forelse ($recentTransactions as $transaction)
-                                <tr>
+                                <tr data-transaction-id="{{ $transaction->id }}">
                                     <td class="fw-semibold text-primary">{{ $transaction->transaction_number }}</td>
                                     <td>{{ $transaction->user?->name ?? 'Kasir' }}</td>
                                     <td><span class="admin-payment-badge">{{ $transaction->payment_method }}</span></td>
@@ -79,7 +81,7 @@
                                     <td class="text-end fw-semibold text-nowrap">Rp{{ number_format((float) $transaction->grand_total, 0, ',', '.') }}</td>
                                 </tr>
                             @empty
-                                <tr><td colspan="5" class="admin-empty">Belum ada transaksi berhasil.</td></tr>
+                                <tr data-empty-transactions><td colspan="5" class="admin-empty">Belum ada transaksi berhasil.</td></tr>
                             @endforelse
                         </tbody>
                     </table>
@@ -122,4 +124,5 @@
             </section>
         </div>
     </div>
+    <div data-admin-dashboard></div>
 @endsection

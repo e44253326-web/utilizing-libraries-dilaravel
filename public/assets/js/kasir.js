@@ -1,9 +1,11 @@
 (() => {
     const config = window.kasirConfig;
     const cart = new Map();
+    const displayedPaymentIds = new Set();
     let paymentMethod = 'Tunai';
     let heldTransactionId = config.heldTransaction?.id ?? null;
     let searchTimer = null;
+    let activePayment = null;
 
     const elements = {
         search: document.getElementById('searchBarang'),
@@ -31,6 +33,14 @@
         holdButton: document.getElementById('tahanTransaksi'),
         cancelButton: document.getElementById('batalTransaksi'),
         payButton: document.getElementById('bayarCetak'),
+        successModal: document.getElementById('paymentSuccessModal'),
+        successNumber: document.getElementById('successTransactionNumber'),
+        successTotal: document.getElementById('successGrandTotal'),
+        successChange: document.getElementById('successChangeAmount'),
+        successError: document.getElementById('paymentSuccessError'),
+        closeSuccess: document.getElementById('closePaymentSuccess'),
+        finishWithoutPrint: document.getElementById('finishWithoutPrint'),
+        printReceipt: document.getElementById('printSuccessReceipt'),
     };
 
     const rupiah = (value) => new Intl.NumberFormat('id-ID', {
@@ -412,6 +422,49 @@
         renderCart();
     }
 
+    function showPaymentSuccess(payment) {
+        const transactionId = String(payment.transaction_id ?? '');
+        if (!transactionId || displayedPaymentIds.has(transactionId)) {
+            return;
+        }
+
+        displayedPaymentIds.add(transactionId);
+        activePayment = payment;
+        elements.successNumber.textContent = payment.transaction_number || '-';
+        elements.successTotal.textContent = rupiah(payment.grand_total);
+        elements.successChange.textContent = rupiah(payment.change_amount);
+        elements.successError.hidden = true;
+        elements.successError.textContent = '';
+        elements.successModal.hidden = false;
+        elements.closeSuccess.focus();
+    }
+
+    function closePaymentSuccess() {
+        elements.successModal.hidden = true;
+        activePayment = null;
+    }
+
+    async function printSuccessReceipt() {
+        if (!activePayment?.receipt_url || !activePayment?.thermal_print_url) {
+            elements.successError.textContent = 'Tautan struk tidak tersedia. Muat ulang halaman kasir.';
+            elements.successError.hidden = false;
+            return;
+        }
+
+        const receiptUrl = new URL(activePayment.receipt_url, window.location.origin);
+        elements.printReceipt.disabled = true;
+        elements.printReceipt.innerHTML = '<span class="spinner-border spinner-border-sm me-1" aria-hidden="true"></span> Mencetak...';
+
+        try {
+            await sendRequest(activePayment.thermal_print_url, 'POST', {});
+            receiptUrl.searchParams.set('thermal_print', 'success');
+        } catch {
+            receiptUrl.searchParams.set('thermal_print', 'failed');
+        }
+
+        window.location.assign(receiptUrl.toString());
+    }
+
     function hydrateHeldTransaction(transaction) {
         if (!transaction) {
             renderCart();
@@ -521,18 +574,24 @@
         elements.payButton.disabled = true;
         try {
             const result = await sendRequest(config.storeUrl, 'POST', requestPayload());
-            const receiptUrl = new URL(result.receipt_url, window.location.origin);
-            try {
-                await sendRequest(result.thermal_print_url, 'POST', {});
-                receiptUrl.searchParams.set('thermal_print', 'success');
-            } catch (error) {
-                receiptUrl.searchParams.set('thermal_print', 'failed');
+            resetTransaction();
+            if (result.next_transaction_number) {
+                document.getElementById('transactionNumber').textContent = result.next_transaction_number;
             }
-            window.location.assign(receiptUrl.toString());
+            showPaymentSuccess(result);
         } catch (error) {
             notify(error.message);
             elements.payButton.disabled = false;
         }
+    }
+
+    function listenForCashierTransactions() {
+        if (!window.Echo || !config.userId) {
+            return;
+        }
+
+        window.Echo.private(`user.${config.userId}`)
+            .listen('.transaction.placed', showPaymentSuccess);
     }
 
     elements.searchButton.addEventListener('click', searchProducts);
@@ -588,6 +647,9 @@
     elements.holdButton.addEventListener('click', holdTransaction);
     elements.cancelButton.addEventListener('click', cancelTransaction);
     elements.payButton.addEventListener('click', payAndPrint);
+    elements.closeSuccess.addEventListener('click', closePaymentSuccess);
+    elements.finishWithoutPrint.addEventListener('click', closePaymentSuccess);
+    elements.printReceipt.addEventListener('click', printSuccessReceipt);
     document.getElementById('kosongkanKeranjang').addEventListener('click', () => {
         cart.clear();
         hideNotice();
@@ -602,10 +664,16 @@
             elements.paidAmount.focus();
         } else if (event.key === 'Escape') {
             event.preventDefault();
-            cancelTransaction();
+            if (!elements.successModal.hidden) {
+                closePaymentSuccess();
+            } else {
+                cancelTransaction();
+            }
         }
     });
 
+    window.addEventListener('reverb:ready', listenForCashierTransactions, { once: true });
+    listenForCashierTransactions();
     hydrateHeldTransaction(config.heldTransaction);
     searchProducts();
     updateClock();

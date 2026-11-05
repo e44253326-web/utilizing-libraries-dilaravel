@@ -8,7 +8,10 @@ use App\Http\Controllers\ProductController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\SettingsController;
 use App\Http\Controllers\StrukController;
+use App\Http\Controllers\ReceiptController;
 use App\Models\Product;
+use App\Events\MessageSent;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', function () {
@@ -71,28 +74,36 @@ Route::middleware(['auth', 'verified'])->group(function () {
             ->middleware('can:viewReceipt,transaction')
             ->name('transactions.invoice');
 
-        // Cetak struk
+        // CETAK STRUK THERMAL - Route Asli Project
         Route::post('/kasir/transaksi/{transaction}/struk/cetak', [StrukController::class, 'struk'])
             ->middleware('can:viewReceipt,transaction')
             ->name('kasir.receipt.print');
+
+        // TAMBAHAN TUGAS MINGGU 11 BKPM - Testing Print (Poin 4)
+        Route::get('/print-struk', [ReceiptController::class, 'print'])->name('print.struk.test');
+        Route::get('/print-receipt', [ReceiptController::class, 'print'])->name('print.receipt.test');
     });
 
     // Halaman invoice Blade
     Route::view('/invoice', 'invoices.invoice')
-        ->name('invoice.blade');
+        ->name('invoice.blade'); 
 });
 
 // Profil pengguna
 Route::middleware('auth')->group(function () {
+    Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
+    Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
+    Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
+});
 
-    Route::get('/profile', [ProfileController::class, 'edit'])
-        ->name('profile.edit');
+// === MINGGU 11 BKPM - CHAT REALTIME DENGAN REVERB ===
+Route::get('/chat', function () {
+    return view('chat');
+});
 
-    Route::patch('/profile', [ProfileController::class, 'update'])
-        ->name('profile.update');
-
-    Route::delete('/profile', [ProfileController::class, 'destroy'])
-        ->name('profile.destroy');
+Route::post('/chat/kirim', function (Request $request) {
+    broadcast(new MessageSent($request->input('message')))->toOthers();
+    return response()->json(['status' => 'ok']);
 });
 
 require __DIR__.'/auth.php';

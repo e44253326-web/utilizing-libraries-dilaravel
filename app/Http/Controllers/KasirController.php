@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Events\TransactionPlaced;
 use App\Models\Product;
 use App\Models\Transaction;
 use Illuminate\Database\Eloquent\Builder;
@@ -110,12 +111,17 @@ class KasirController extends Controller
         $validated = $this->validatedCart($request, true);
         $transaction = $this->persistTransaction($validated, 'paid');
 
+        event(new TransactionPlaced($transaction));
+
         return response()->json([
             'message' => 'Transaksi berhasil disimpan.',
             'transaction_id' => $transaction->id,
             'transaction_number' => $transaction->transaction_number,
+            'grand_total' => (float) $transaction->grand_total,
+            'change_amount' => (float) $transaction->change_amount,
             'receipt_url' => route('kasir.receipt', $transaction),
             'thermal_print_url' => route('kasir.receipt.print', $transaction),
+            'next_transaction_number' => $this->nextTransactionNumber(),
         ]);
     }
 
@@ -145,7 +151,6 @@ class KasirController extends Controller
     public function destroyHeld(Transaction $transaction): RedirectResponse
     {
         $this->authorize('deleteHeld', $transaction);
-
         $transaction->delete();
 
         return to_route('kasir.ditahan')->with('success', 'Transaksi ditahan berhasil dihapus.');
@@ -315,20 +320,6 @@ class KasirController extends Controller
         });
     }
 
-    private function nextTransactionNumber(): string
-    {
-        $prefix = 'TRX-'.now('Asia/Jakarta')->format('Ymd').'-';
-        $latestNumber = Transaction::query()
-            ->where('transaction_number', 'like', $prefix.'%')
-            ->orderByDesc('id')
-            ->value('transaction_number');
-        $sequence = $latestNumber === null
-            ? 1
-            : ((int) substr($latestNumber, strlen($prefix))) + 1;
-
-        return $prefix.str_pad((string) $sequence, 3, '0', STR_PAD_LEFT);
-    }
-
     private function productCode(Product $product): ?string
     {
         foreach (['code', 'barcode'] as $column) {
@@ -341,6 +332,20 @@ class KasirController extends Controller
         }
 
         return null;
+    }
+
+    private function nextTransactionNumber(): string
+    {
+        $prefix = 'TRX-'.now('Asia/Jakarta')->format('Ymd').'-';
+        $latestNumber = Transaction::query()
+            ->where('transaction_number', 'like', $prefix.'%')
+            ->orderByDesc('id')
+            ->value('transaction_number');
+        $sequence = $latestNumber === null
+            ? 1
+            : ((int) substr($latestNumber, strlen($prefix))) + 1;
+
+        return $prefix.str_pad((string) $sequence, 3, '0', STR_PAD_LEFT);
     }
 
     private function ownedHeldTransactions(): Builder

@@ -2,12 +2,14 @@
 
 namespace Tests\Feature;
 
+use App\Events\TransactionPlaced;
 use App\Models\Product;
 use App\Models\Transaction;
 use App\Models\TransactionDetail;
 use App\Models\User;
 use App\Services\EscPosReceiptPrinter;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Event;
 use Mockery\MockInterface;
 use Tests\TestCase;
 
@@ -21,7 +23,12 @@ class KasirTransactionTest extends TestCase
         $response = $this->get(route('kasir.index'));
 
         $response->assertOk()
-            ->assertSee('TOKO DIAN NAME');
+            ->assertSee('TOKO DIAN NAME')
+            ->assertSee('Pembayaran Berhasil')
+            ->assertSee('Selesai Tanpa Cetak')
+            ->assertSee('Cetak Struk')
+            ->assertSee('assets/js/kasir.js?v=', false)
+            ->assertSee('assets/css/kasir.css?v=', false);
     }
 
     public function test_product_search_returns_products_from_the_database(): void
@@ -86,6 +93,7 @@ class KasirTransactionTest extends TestCase
         ]);
 
         $this->login();
+        Event::fake([TransactionPlaced::class]);
         $response = $this->postJson(route('kasir.store'), [
             'items' => [
                 ['product_id' => $product->id, 'qty' => 2],
@@ -104,7 +112,23 @@ class KasirTransactionTest extends TestCase
             ->assertJsonPath('message', 'Transaksi berhasil disimpan.');
 
         $transaction = Transaction::query()->with('details')->firstOrFail();
+        Event::assertDispatched(TransactionPlaced::class, function (TransactionPlaced $event) use ($transaction): bool {
+            $channels = collect($event->broadcastOn())
+                ->map(fn ($channel): string => $channel->name)
+                ->all();
+            $payload = $event->broadcastWith();
+
+            return $event->transaction->is($transaction)
+                && $channels === ['private-user.'.$transaction->user_id, 'private-admin.transactions']
+                && $payload['transaction_number'] === $transaction->transaction_number
+                && $payload['grand_total'] === 19000.0
+                && $payload['change_amount'] === 1000.0
+                && $payload['receipt_url'] === route('kasir.receipt', $transaction)
+                && $payload['thermal_print_url'] === route('kasir.receipt.print', $transaction);
+        });
         $response->assertJsonPath('thermal_print_url', route('kasir.receipt.print', $transaction));
+        $response->assertJsonPath('grand_total', 19000)
+            ->assertJsonPath('change_amount', 1000);
         $this->assertSame('paid', $transaction->status);
         $this->assertSame('QRIS', $transaction->payment_method);
         $this->assertSame(20000.0, (float) $transaction->subtotal);
@@ -238,6 +262,7 @@ class KasirTransactionTest extends TestCase
         ]);
 
         $this->login();
+        Event::fake([TransactionPlaced::class]);
         $response = $this->postJson(route('kasir.hold'), [
             'items' => [
                 ['product_id' => $product->id, 'qty' => 3],
@@ -249,6 +274,7 @@ class KasirTransactionTest extends TestCase
 
         $response->assertOk()
             ->assertJsonPath('message', 'Transaksi berhasil ditahan.');
+        Event::assertNotDispatched(TransactionPlaced::class);
 
         $transaction = Transaction::query()->firstOrFail();
         $this->assertSame('held', $transaction->status);

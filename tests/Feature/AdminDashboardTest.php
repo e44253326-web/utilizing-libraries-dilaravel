@@ -82,6 +82,48 @@ class AdminDashboardTest extends TestCase
             ->assertForbidden();
     }
 
+    public function test_only_admins_can_subscribe_to_the_admin_transaction_channel(): void
+    {
+        $admin = User::factory()->create(['role' => 'admin']);
+
+        $this->actingAs($admin)
+            ->postJson('/broadcasting/auth', [
+                'socket_id' => '123.456',
+                'channel_name' => 'private-admin.transactions',
+            ])
+            ->assertOk();
+
+        $cashier = User::factory()->create(['role' => 'cashier']);
+
+        $this->actingAs($cashier)
+            ->postJson('/broadcasting/auth', [
+                'socket_id' => '123.456',
+                'channel_name' => 'private-admin.transactions',
+            ])
+            ->assertForbidden();
+    }
+
+    public function test_users_can_only_subscribe_to_their_own_transaction_channel(): void
+    {
+        $owner = User::factory()->create(['role' => 'cashier']);
+
+        $this->actingAs($owner)
+            ->postJson('/broadcasting/auth', [
+                'socket_id' => '123.456',
+                'channel_name' => 'private-user.'.$owner->id,
+            ])
+            ->assertOk();
+
+        $anotherCashier = User::factory()->create(['role' => 'cashier']);
+
+        $this->actingAs($anotherCashier)
+            ->postJson('/broadcasting/auth', [
+                'socket_id' => '123.456',
+                'channel_name' => 'private-user.'.$owner->id,
+            ])
+            ->assertForbidden();
+    }
+
     public function test_dashboard_route_redirects_admin_users_to_admin(): void
     {
         $this->actingAs(User::factory()->create(['role' => 'admin']))
