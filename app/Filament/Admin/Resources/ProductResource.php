@@ -3,38 +3,35 @@
 namespace App\Filament\Admin\Resources;
 
 use App\Filament\Admin\Resources\ProductResource\Pages;
-use App\Filament\Admin\Resources\ProductResource\RelationManagers;
 use App\Models\Product;
 use Filament\Forms;
 use Filament\Forms\Form;
 use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Table;
-use Illuminate\Database\Eloquent\Builder;
-use Illuminate\Database\Eloquent\SoftDeletingScope;
+use Filament\Forms\Components\Select;
+use Filament\Forms\Components\TextInput;
+use Filament\Forms\Components\FileUpload;
+use Filament\Tables\Columns\ImageColumn;
+use Filament\Tables\Columns\TextColumn;
+use Filament\Tables\Filters\SelectFilter;
 
 class ProductResource extends Resource
 {
     protected static ?string $model = Product::class;
-
-    protected static ?string $navigationIcon = 'heroicon-o-rectangle-stack';
+    protected static ?string $navigationIcon = 'heroicon-o-shopping-bag';
+    protected static ?string $navigationGroup = 'Manajemen Toko';
+    protected static ?int $navigationSort = 2;
 
     public static function form(Form $form): Form
     {
         return $form
             ->schema([
-                Forms\Components\TextInput::make('name')
-                    ->required(),
-                Forms\Components\TextInput::make('price')
-                    ->required()
-                    ->numeric()
-                    ->prefix('$'),
-                Forms\Components\TextInput::make('stock')
-                    ->required()
-                    ->numeric()
-                    ->default(0),
-                Forms\Components\FileUpload::make('image_path')
-                    ->image(),
+                Select::make('category_id')->relationship('category', 'name')->searchable()->preload()->required()->label('Kategori'),
+                TextInput::make('name')->required()->maxLength(255)->label('Nama Produk'),
+                TextInput::make('price')->required()->numeric()->prefix('Rp')->label('Harga'),
+                TextInput::make('stock')->required()->numeric()->default(0)->label('Stok'),
+                FileUpload::make('image_path')->image()->directory('products')->label('Foto Produk'),
             ]);
     }
 
@@ -42,42 +39,29 @@ class ProductResource extends Resource
     {
         return $table
             ->columns([
-                Tables\Columns\TextColumn::make('name')
-                    ->searchable(),
-                Tables\Columns\TextColumn::make('price')
-                    ->money()
-                    ->sortable(),
-                Tables\Columns\TextColumn::make('stock')
-                    ->numeric()
-                    ->sortable(),
-                Tables\Columns\TextColumn::make('created_at')
-                    ->dateTime()
-                    ->sortable()
-                    ->toggleable(isToggledHiddenByDefault: true),
-                Tables\Columns\TextColumn::make('updated_at')
-                    ->dateTime()
-                    ->sortable()
-                    ->toggleable(isToggledHiddenByDefault: true),
-                Tables\Columns\ImageColumn::make('image_path'),
+                ImageColumn::make('image_path')->label('Foto'),
+                TextColumn::make('name')->label('Nama Produk')->searchable()->sortable(),
+                TextColumn::make('category.name')->label('Kategori')->searchable()->sortable()->badge()->color('info'),
+                TextColumn::make('price')->label('Harga')->money('IDR')->sortable(),
+                TextColumn::make('stock')->label('Stok')->sortable()->badge()
+                    ->color(fn ($state): string => match (true) {
+                        $state == 0 => 'danger',
+                        $state < 10 => 'warning',
+                        default => 'success',
+                    }),
             ])
             ->filters([
-                //
+                SelectFilter::make('category')->relationship('category', 'name')->label('Filter Kategori'),
             ])
             ->actions([
                 Tables\Actions\EditAction::make(),
+                Tables\Actions\DeleteAction::make(),
             ])
             ->bulkActions([
                 Tables\Actions\BulkActionGroup::make([
                     Tables\Actions\DeleteBulkAction::make(),
                 ]),
             ]);
-    }
-
-    public static function getRelations(): array
-    {
-        return [
-            //
-        ];
     }
 
     public static function getPages(): array
