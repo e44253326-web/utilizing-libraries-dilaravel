@@ -223,6 +223,24 @@ class KasirTransactionTest extends TestCase
             ->assertJsonPath('message', 'Struk berhasil dikirim ke printer thermal.');
     }
 
+    public function test_test_print_route_prints_the_selected_paid_transaction(): void
+    {
+        $cashier = $this->login();
+        $transaction = $this->createPaidTransaction($cashier);
+
+        $this->mock(EscPosReceiptPrinter::class, function (MockInterface $mock) use ($transaction): void {
+            $mock->shouldReceive('print')
+                ->once()
+                ->with(\Mockery::on(
+                    fn (Transaction $printedTransaction): bool => $printedTransaction->is($transaction)
+                ));
+        });
+
+        $this->postJson(route('print.struk.test', $transaction))
+            ->assertOk()
+            ->assertJsonPath('message', 'Struk berhasil dikirim ke printer thermal.');
+    }
+
     public function test_failed_thermal_print_keeps_the_paid_transaction_saved(): void
     {
         $cashier = $this->login();

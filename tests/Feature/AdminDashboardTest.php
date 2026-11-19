@@ -12,6 +12,12 @@ class AdminDashboardTest extends TestCase
 {
     use RefreshDatabase;
 
+    public function test_filament_admin_login_page_is_available(): void
+    {
+        $this->get('/admin/login')
+            ->assertOk();
+    }
+
     public function test_dashboard_displays_inventory_and_paid_sales_totals_for_today(): void
     {
         $user = User::factory()->create(['name' => 'Admin Demo', 'role' => 'admin']);

@@ -4,7 +4,6 @@ namespace App\Services;
 
 use App\Models\Transaction;
 use Illuminate\Support\Str;
-use Mike42\Escpos\PrintConnectors\WindowsPrintConnector;
 use Mike42\Escpos\Printer;
 
 class EscPosReceiptPrinter
@@ -13,7 +12,7 @@ class EscPosReceiptPrinter
     {
         $transaction->loadMissing(['details', 'user']);
         $printer = new Printer(
-            new WindowsPrintConnector((string) config('escpos.printer_name'))
+            new WindowsSpoolerPrintConnector((string) config('escpos.printer_name'))
         );
 
         try {

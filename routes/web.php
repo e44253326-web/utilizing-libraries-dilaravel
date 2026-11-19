@@ -1,5 +1,6 @@
 <?php
 
+use App\Events\MessageSent;
 use App\Http\Controllers\AdminController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\KasirController;
@@ -8,9 +9,7 @@ use App\Http\Controllers\ProductController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\SettingsController;
 use App\Http\Controllers\StrukController;
-use App\Http\Controllers\ReceiptController;
 use App\Models\Product;
-use App\Events\MessageSent;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
@@ -18,9 +17,9 @@ Route::get('/', function () {
     return view('welcome');
 });
 
-Route::get('/admin', [AdminController::class, 'index'])
-    ->middleware(['admin', 'verified', 'can:access-admin-dashboard'])
-    ->name('admin.index');
+// Route::get('/admin', [AdminController::class, 'index'])
+//     ->middleware(['admin', 'verified', 'can:access-admin-dashboard'])
+//     ->name('admin.index');
 
 Route::middleware(['auth', 'verified'])->group(function () {
 
@@ -79,14 +78,18 @@ Route::middleware(['auth', 'verified'])->group(function () {
             ->middleware('can:viewReceipt,transaction')
             ->name('kasir.receipt.print');
 
-        // TAMBAHAN TUGAS MINGGU 11 BKPM - Testing Print (Poin 4)
-        Route::get('/print-struk', [ReceiptController::class, 'print'])->name('print.struk.test');
-        Route::get('/print-receipt', [ReceiptController::class, 'print'])->name('print.receipt.test');
+        Route::post('/print-struk/{transaction}', [StrukController::class, 'struk'])
+            ->middleware('can:viewReceipt,transaction')
+            ->name('print.struk.test');
+
+        Route::post('/print-receipt/{transaction}', [StrukController::class, 'struk'])
+            ->middleware('can:viewReceipt,transaction')
+            ->name('print.receipt.test');
     });
 
     // Halaman invoice Blade
     Route::view('/invoice', 'invoices.invoice')
-        ->name('invoice.blade'); 
+        ->name('invoice.blade');
 });
 
 // Profil pengguna
@@ -103,6 +106,7 @@ Route::get('/chat', function () {
 
 Route::post('/chat/kirim', function (Request $request) {
     broadcast(new MessageSent($request->input('message')))->toOthers();
+
     return response()->json(['status' => 'ok']);
 });
 

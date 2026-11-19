@@ -380,7 +380,7 @@
         };
     }
 
-    async function sendRequest(url, method, payload = null) {
+    async function sendRequest(url, method, payload = null, signal = null) {
         const options = {
             method,
             headers: {
@@ -388,6 +388,9 @@
                 'X-CSRF-TOKEN': config.csrfToken,
             },
         };
+        if (signal) {
+            options.signal = signal;
+        }
         if (payload !== null) {
             options.headers['Content-Type'] = 'application/json';
             options.body = JSON.stringify(payload);
@@ -452,14 +455,25 @@
         }
 
         const receiptUrl = new URL(activePayment.receipt_url, window.location.origin);
+        const printController = new AbortController();
+        const printTimeout = window.setTimeout(() => printController.abort(), 20000);
         elements.printReceipt.disabled = true;
         elements.printReceipt.innerHTML = '<span class="spinner-border spinner-border-sm me-1" aria-hidden="true"></span> Mencetak...';
 
         try {
-            await sendRequest(activePayment.thermal_print_url, 'POST', {});
+            await sendRequest(activePayment.thermal_print_url, 'POST', {}, printController.signal);
             receiptUrl.searchParams.set('thermal_print', 'success');
-        } catch {
+        } catch (error) {
+            if (error.name === 'AbortError') {
+                elements.successError.textContent = 'Printer belum merespons. Status cetak belum pasti. Periksa antrean printer sebelum mencoba cetak ulang.';
+                elements.successError.hidden = false;
+                elements.printReceipt.textContent = 'Periksa antrean printer';
+                return;
+            }
+
             receiptUrl.searchParams.set('thermal_print', 'failed');
+        } finally {
+            window.clearTimeout(printTimeout);
         }
 
         window.location.assign(receiptUrl.toString());
